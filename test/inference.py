@@ -75,11 +75,10 @@ def restore_model():
                 print ('Restored %d(%d) vars from %s' %(
                     len(vars_to_restore), len(tf.global_variables()),
                     checkpoint_path ))
+                print('Done restoring')
             except:
                 print ('Checking your params %s' %(checkpoint_path))
-                raise
-
-        print('Done restoring')
+                print('Fail restoring. Using randomly initialized parameters.')
 
         box = outputs['P5']['refined']['box']
         cls_prob = tf.nn.softmax(outputs['P5']['refined']['cls'])
@@ -143,5 +142,5 @@ def predict_boxes(filenames, trans_cls=True):
 
 
 if __name__ == '__main__':
-    results = predict_boxes(['TheMachine.png'])
+    results = predict_boxes(['./test/dog.jpeg'])
     import pdb;pdb.set_trace()
