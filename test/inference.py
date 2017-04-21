@@ -14,7 +14,7 @@ import libs.preprocessings.coco_v1 as coco_preprocess
 import libs.nets.pyramid_network as pyramid_network
 import libs.nets.resnet_v1 as resnet_v1
 from libs.nets.train_utils import _get_variables_to_train, get_var_list_to_restore
-from libs.layers import roi_decoder
+from libs.layers import roi_decoder, mask_decoder
 
 
 class MaskRCNN(object):
@@ -61,12 +61,17 @@ class MaskRCNN(object):
         # classes: (N,)
         # scores: (N,)
         box = self.outputs['P5']['refined']['box']
-        cls_prob = tf.nn.softmax(self.outputs['P5']['refined']['cls'])
+        cls = self.outputs['P5']['refined']['cls']
+        cls_index = tf.argmax(cls, axis=1) + 1
+        cls_prob = tf.nn.softmax(cls)
         rois = self.outputs['P5']['roi']['box']
+        masks = self.outputs['P5']['mask']['mask']
+
         final_boxes, classes, scores = roi_decoder(box, cls_prob, rois, ih, iw)
+        masked_img = mask_decoder(masks, rois, cls_index, ih, iw)
 
         self.graph_inputs = [image_in, ih, iw]
-        self.graph_outputs = [final_boxes, classes, scores]
+        self.graph_outputs = [final_boxes, classes, scores, masked_img]
         print('\nDone building model.')
 
         print('\nCreating session and initializing variables...')
@@ -135,7 +140,7 @@ class MaskRCNN(object):
 
         return [cid_to_cat[cid] for cid in cid_list]
 
-    def inference(self, data_list, trans_cls=True, draw_box=True, n_box=10):
+    def inference(self, data_list, trans_cls=True, draw_box=True, draw_mask=True, n_box=10):
 
         image_data = []
         if isinstance(data_list[0], str) or isinstance(data_list[0], unicode):
@@ -163,8 +168,8 @@ class MaskRCNN(object):
             feed_dict = {image_in: image_data, ih: img_h, iw: img_w}
 
             # inference
-            boxes, clss, scs = self.sess.run(self.graph_outputs,
-                                             feed_dict=feed_dict)
+            boxes, clss, scs, masks = self.sess.run(self.graph_outputs,
+                                                    feed_dict=feed_dict)
 
             # transform category id to real object name
             if trans_cls:
@@ -173,12 +178,20 @@ class MaskRCNN(object):
             result['boxes'] = boxes
             result['classes'] = clss
             result['scores'] = scs
+            result['mask'] = masks
 
             inference_results.append(result)
 
             if draw_box:
                 img_box = self.draw_boxes(image_data, boxes, clss, scs, n_box)
                 img_box.save('image_box_{}.png'.format(str(ind)))
+
+            if draw_mask:
+                masks[masks < 0] = 0
+                masks[masks > 0] = 255
+                masks = np.array([masks, masks, masks]).transpose([1, 2, 0]).astype('uint8')
+                mask_im = Image.fromarray(masks)
+                mask_im.save('mask_{}.png'.format(str(ind)))
 
         return inference_results
 

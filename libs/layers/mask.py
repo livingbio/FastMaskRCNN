@@ -105,8 +105,9 @@ def decode(mask_targets, rois, classes, ih, iw):
   for i in np.arange(num):
     k = classes[i]
     mask = mask_targets[i, :, :, k]
-    h, w = rois[i, 3] - rois[i, 1] + 1, rois[i, 2] - rois[i, 0] + 1
-    x, y = rois[i, 0], rois[i, 1]
+    x1, y1, x2, y2 = rois[i]
+    h, w = int(y2) - int(y1) + 1, int(x2) - int(x1) + 1
+    x, y = int(x1), int(y1)
     mask = cv2.resize(mask, (w, h), interpolation=cv2.INTER_NEAREST)
     mask *= k
     
