@@ -62,7 +62,7 @@ class MaskRCNN(object):
         # scores: (N,)
         box = self.outputs['P5']['refined']['box']
         cls = self.outputs['P5']['refined']['cls']
-        cls_index = tf.argmax(cls, axis=1) + 1
+        cls_index = tf.argmax(cls, axis=1)
         cls_prob = tf.nn.softmax(cls)
         rois = self.outputs['P5']['roi']['box']
         masks = self.outputs['P5']['mask']['mask']
@@ -121,7 +121,7 @@ class MaskRCNN(object):
     def transform_classes(self, cid_list):
         """Mapping from category ids to real object classes"""
 
-        cid_to_cat = {1: 'person', 2: 'bicycle', 3: 'car', 4: 'motorcycle', 5: 'airplane',
+        cid_to_cat = {0: 'None', 1: 'person', 2: 'bicycle', 3: 'car', 4: 'motorcycle', 5: 'airplane',
          6: 'bus', 7: 'train', 8: 'truck', 9: 'boat', 10: 'traffic light',
          11: 'fire hydrant', 12: 'stop sign', 13: 'parking meter', 14: 'bench',
          15: 'bird', 16: 'cat', 17: 'dog', 18: 'horse', 19: 'sheep', 20: 'cow',
@@ -140,7 +140,8 @@ class MaskRCNN(object):
 
         return [cid_to_cat[cid] for cid in cid_list]
 
-    def inference(self, data_list, trans_cls=True, draw_box=True, draw_mask=True, n_box=10):
+    def inference(self, data_list, trans_cls=True, draw_box=True, draw_mask=True,
+                  n_box=15, box_width=2):
 
         image_data = []
         if isinstance(data_list[0], str) or isinstance(data_list[0], unicode):
@@ -183,24 +184,23 @@ class MaskRCNN(object):
             inference_results.append(result)
 
             if draw_box:
-                img_box = self.draw_boxes(image_data, boxes, clss, scs, n_box)
+                img_box = self.draw_boxes_and_masks(image_data, boxes, clss, scs,
+                                                    masks, n_box, width=box_width,
+                                                    draw_mask=draw_mask)
                 img_box.save('image_box_{}.png'.format(str(ind)))
-
-            if draw_mask:
-                masks[masks < 0] = 0
-                masks[masks > 0] = 255
-                masks = np.array([masks, masks, masks]).transpose([1, 2, 0]).astype('uint8')
-                mask_im = Image.fromarray(masks)
-                mask_im.save('mask_{}.png'.format(str(ind)))
 
         return inference_results
 
-    def draw_boxes(self, img, boxes, classes, scores, n_box=10,
-                   line_col=(0, 255, 0), text_col=(255, 255, 255), width=0):
+    def draw_boxes_and_masks(self, img, boxes, classes, scores, masks,
+                             n_box=10, img_id=0, width=0, alpha=0.7,
+                             line_col=(0, 255, 0), text_col=(255, 255, 255),
+                             mask_col=(118, 201, 216), draw_mask=False):
         im = Image.fromarray(img)
         draw = ImageDraw.Draw(im)
+        fnt = ImageFont.load_default()
 
         rank = sorted([(sc, ind) for ind, sc in enumerate(scores)], reverse=True)
+        box_region = np.zeros(img.shape[:2])
         for sc, ind in rank[:n_box]:
             x1, y1, x2, y2 = boxes[ind]
             draw.line((x1, y1, x1, y2), fill=line_col, width=width)
@@ -208,7 +208,24 @@ class MaskRCNN(object):
             draw.line((x2, y2, x2, y1), fill=line_col, width=width)
             draw.line((x2, y1, x1, y1), fill=line_col, width=width)
 
-            draw.text((x1, y1), classes[ind] + ':%.2f' % sc, fill=text_col)
+            txt = classes[ind] + ':%.2f' % sc
+            w, h = fnt.getsize(txt)
+            draw.rectangle((x1, y1 - 12, x1 + w, y1 + h - 12), fill='black')
+            draw.text((x1, y1 - 12), txt, fill=text_col)
+            box_region[int(y1):int(y2), int(x1):int(x2)] = 1
+
+        if draw_mask:
+            tmask = np.array(masks)
+            tmask[tmask < 0] = 0
+            tmask[tmask > 0] = int(255 * alpha)
+            tmask[box_region == 0] = 0
+            tmask = np.expand_dims(tmask, axis=2)
+
+            mask_layer = np.ones((tmask.shape[0], tmask.shape[1], 3)) * mask_col
+            mask_layer = np.concatenate((mask_layer, tmask), axis=2).astype('uint8')
+            mask_layer = Image.fromarray(mask_layer)
+            # mask_layer.save('mask_{}.png'.format(str(img_id)))
+            im = Image.alpha_composite(im.convert('RGBA'), mask_layer)
 
         del draw
 
@@ -219,5 +236,5 @@ if __name__ == '__main__':
     clf = MaskRCNN()
     clf.build_model()
     clf.restore_model()
-    results = clf.inference(['./test/dog.jpeg', 'room.jpeg'])
+    results = clf.inference(['./test/dog.jpeg', 'kit.jpeg', 'wh.jpeg'])
     import pdb;pdb.set_trace()
