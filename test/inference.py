@@ -194,7 +194,7 @@ class MaskRCNN(object):
     def draw_boxes_and_masks(self, img, boxes, classes, scores, masks,
                              n_box=10, img_id=0, width=0, alpha=0.7,
                              line_col=(0, 255, 0), text_col=(255, 255, 255),
-                             mask_col=(118, 201, 216), draw_mask=False):
+                             mask_col=(202, 42, 57), draw_mask=False):
         im = Image.fromarray(img)
         draw = ImageDraw.Draw(im)
         fnt = ImageFont.load_default()
