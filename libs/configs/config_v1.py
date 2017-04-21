@@ -45,7 +45,7 @@ tf.app.flags.DEFINE_float(
     'weight_decay', 0.00004, 'The weight decay on the model weights.')
 
 tf.app.flags.DEFINE_string(
-    'optimizer', 'momentum',
+    'optimizer', 'rmsprop',
     'The name of the optimizer, one of "adadelta", "adagrad", "adam",'
     '"ftrl", "momentum", "sgd" or "rmsprop".')
 
@@ -81,12 +81,12 @@ tf.app.flags.DEFINE_float(
     'ftrl_l2', 0.0, 'The FTRL l2 regularization strength.')
 
 tf.app.flags.DEFINE_float(
-    'momentum', 0.9,
+    'momentum', 0.99,
     'The momentum for the MomentumOptimizer and RMSPropOptimizer.')
 
-tf.app.flags.DEFINE_float('rmsprop_momentum', 0.9, 'Momentum.')
+tf.app.flags.DEFINE_float('rmsprop_momentum', 0.99, 'Momentum.')
 
-tf.app.flags.DEFINE_float('rmsprop_decay', 0.9, 'Decay term for RMSProp.')
+tf.app.flags.DEFINE_float('rmsprop_decay', 0.99, 'Decay term for RMSProp.')
 
 #######################
 # Learning Rate Flags #
@@ -97,11 +97,11 @@ tf.app.flags.DEFINE_string(
     'Specifies how the learning rate is decayed. One of "fixed", "exponential",'
     ' or "polynomial"')
 
-tf.app.flags.DEFINE_float('learning_rate', 0.001,
+tf.app.flags.DEFINE_float('learning_rate', 0.002,
                           'Initial learning rate.')
 
 tf.app.flags.DEFINE_float(
-    'end_learning_rate', 0.0001,
+    'end_learning_rate', 0.00001,
     'The minimal end learning rate used by a polynomial decay learning rate.')
 
 tf.app.flags.DEFINE_float(
@@ -167,7 +167,7 @@ tf.app.flags.DEFINE_string(
     'The classes to classify.')
 
 tf.app.flags.DEFINE_integer(
-    'image_min_size', 800,
+    'image_min_size', 640,
     'resize image so that the min edge equals to image_min_size')
 
 #####################
@@ -202,7 +202,7 @@ tf.app.flags.DEFINE_boolean(
 #######################
 
 tf.app.flags.DEFINE_float(
-    'fg_threshold', 0.7,
+    'fg_threshold', 0.5,
     'Only regions which intersection is larger than fg_threshold are considered to be fg')
 
 tf.app.flags.DEFINE_float(
@@ -210,7 +210,7 @@ tf.app.flags.DEFINE_float(
     'Only regions which intersection is less than bg_threshold are considered to be bg')
 
 tf.app.flags.DEFINE_integer(
-    'rois_per_image', 128,
+    'rois_per_image', 64,
     'Number of rois that should be sampled to train this network')
 
 tf.app.flags.DEFINE_float(

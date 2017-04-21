@@ -11,6 +11,7 @@ from . import anchor
 from . import roi
 from . import mask
 from . import sample
+from . import assign
 from libs.boxes.anchor import anchors_plane
 
 def anchor_encoder(gt_boxes, all_anchors, height, width, stride, scope='AnchorEncoder'):
@@ -120,6 +121,19 @@ def sample_wrapper(boxes, scores, is_training=False, scope='SampleBoxes'):
   
   return boxes, scores
 
+def sample_with_gt_wrapper(boxes, scores, gt_boxes, is_training=False, scope='SampleBoxesWithGT'):
+  
+  with tf.name_scope(scope) as sc:
+    boxes, scores = \
+      tf.py_func(sample.sample_rpn_outputs_wrt_gt_boxes,
+                 [boxes, scores, gt_boxes, is_training],
+                 [tf.float32, tf.float32])
+    boxes = tf.convert_to_tensor(boxes, name='Boxes')
+    scores = tf.convert_to_tensor(scores, name='Scores')
+    boxes = tf.reshape(boxes, (-1, 4))
+  
+  return boxes, scores
+
 def gen_all_anchors(height, width, stride, scope='GenAnchors'):
   
   with tf.name_scope(scope) as sc:
@@ -132,4 +146,22 @@ def gen_all_anchors(height, width, stride, scope='GenAnchors'):
     all_anchors = tf.reshape(all_anchors, (height, width, -1))
     
     return all_anchors
-    
+
+def assign_boxes(gt_boxes, layers, scope='AssignGTBoxes'):
+
+    with tf.name_scope(scope) as sc:
+        min_k = layers[0]
+        max_k = layers[-1]
+        assigned_layers = \
+            tf.py_func(assign.assign_boxes, 
+                     [ gt_boxes, min_k, max_k ],
+                     tf.int32)
+        assigned_layers = tf.reshape(assigned_layers, [-1])
+        assigned_gt_boxes = []
+        for t in layers:
+            t = tf.cast(t, tf.int32)
+            inds = tf.where(tf.equal(assigned_layers, t))
+            inds = tf.reshape(inds, [-1])
+            assigned_gt_boxes.append(tf.gather(gt_boxes, inds))
+
+        return assigned_gt_boxes + [assigned_layers]
