@@ -236,5 +236,5 @@ if __name__ == '__main__':
     clf = MaskRCNN()
     clf.build_model()
     clf.restore_model()
-    results = clf.inference(['./test/dog.jpeg', 'kit.jpeg', 'wh.jpeg'])
+    results = clf.inference(['./test/dog.jpeg', './test/kit.jpeg', './test/wh.jpeg'])
     import pdb;pdb.set_trace()
