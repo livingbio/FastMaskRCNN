@@ -7,7 +7,7 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))  # noqa
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import libs.preprocessings.coco_v1 as coco_preprocess
@@ -135,7 +135,7 @@ class MaskRCNN(object):
 
         return [cid_to_cat[cid] for cid in cid_list]
 
-    def inference(self, data_list, trans_cls=True):
+    def inference(self, data_list, trans_cls=True, draw_box=True, n_box=10):
 
         image_data = []
         if isinstance(data_list[0], str) or isinstance(data_list[0], unicode):
@@ -157,7 +157,7 @@ class MaskRCNN(object):
 
         image_in, ih, iw = self.graph_inputs
         inference_results = []
-        for data in image_data:
+        for ind, data in enumerate(image_data):
             result = {}
             image_data, img_h, img_w = data
             feed_dict = {image_in: image_data, ih: img_h, iw: img_w}
@@ -176,12 +176,35 @@ class MaskRCNN(object):
 
             inference_results.append(result)
 
+            if draw_box:
+                img_box = self.draw_boxes(image_data, boxes, clss, scs, n_box)
+                img_box.save('image_box_{}.png'.format(str(ind)))
+
         return inference_results
+
+    def draw_boxes(self, img, boxes, classes, scores, n_box=10,
+                   line_col=(0, 255, 0), text_col=(255, 255, 255), width=0):
+        im = Image.fromarray(img)
+        draw = ImageDraw.Draw(im)
+
+        rank = sorted([(sc, ind) for ind, sc in enumerate(scores)], reverse=True)
+        for sc, ind in rank[:n_box]:
+            x1, y1, x2, y2 = boxes[ind]
+            draw.line((x1, y1, x1, y2), fill=line_col, width=width)
+            draw.line((x1, y2, x2, y2), fill=line_col, width=width)
+            draw.line((x2, y2, x2, y1), fill=line_col, width=width)
+            draw.line((x2, y1, x1, y1), fill=line_col, width=width)
+
+            draw.text((x1, y1), classes[ind] + ':%.2f' % sc, fill=text_col)
+
+        del draw
+
+        return im
 
 
 if __name__ == '__main__':
     clf = MaskRCNN()
     clf.build_model()
     clf.restore_model()
-    results = clf.inference(['./test/dog.jpeg'])
+    results = clf.inference(['./test/dog.jpeg', 'room.jpeg'])
     import pdb;pdb.set_trace()
